@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Restore') {
+            steps {
+                sh 'dotnet restore WebApplication1.sln'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'dotnet build WebApplication1.sln --configuration Release --no-restore'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'dotnet test WebApplication1.sln --configuration Release --no-build --no-restore'
+            }
+        }
+
+        stage('Publish') {
+            steps {
+                sh 'dotnet publish WebApplication1/WebApplication1.csproj --configuration Release --no-build --no-restore --output "$WORKSPACE/publish"'
+                archiveArtifacts artifacts: 'publish/**', fingerprint: true
+            }
+        }
+    }
+}
