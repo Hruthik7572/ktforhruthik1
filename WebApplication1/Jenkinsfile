@@ -59,7 +59,7 @@ pipeline {
                         error('AWS_REGION, AWS_DEPLOYMENT_BUCKET, and AWS_DB_SECRET_ARN are required when DEPLOY_TO_AWS is enabled.')
                     }
                 }
-                sh 'dotnet lambda deploy-serverless "$AWS_STACK_NAME" --region "$AWS_REGION" --s3-bucket "$AWS_DEPLOYMENT_BUCKET" --template-parameters "DatabaseSecretArn=$AWS_DB_SECRET_ARN" --disable-interactive'
+                sh 'bash scripts/deploy-lambda.sh'
             }
         }
     }
