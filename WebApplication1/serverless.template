@@ -1,0 +1,57 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Student and employee details API hosted on AWS Lambda.",
+  "Parameters": {
+    "DatabaseSecretArn": {
+      "Type": "String",
+      "Description": "ARN of the Secrets Manager secret containing the SQL Server connection string."
+    }
+  },
+  "Resources": {
+    "StudentEmployeeApi": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "WebApplication1::WebApplication1.LambdaEntryPoint::FunctionHandlerAsync",
+        "Runtime": "dotnet10",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "secretsmanager:GetSecretValue",
+                "Resource": { "Ref": "DatabaseSecretArn" }
+              }
+            ]
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "StudentDbSecretArn": { "Ref": "DatabaseSecretArn" }
+          }
+        },
+        "Events": {
+          "ApiRoot": {
+            "Type": "HttpApi",
+            "Properties": { "Path": "/", "Method": "ANY" }
+          },
+          "ApiProxy": {
+            "Type": "HttpApi",
+            "Properties": { "Path": "/{proxy+}", "Method": "ANY" }
+          }
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ApiUrl": {
+      "Description": "API Gateway HTTP API endpoint",
+      "Value": { "Fn::Sub": "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/" }
+    }
+  }
+}

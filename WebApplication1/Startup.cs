@@ -15,7 +15,7 @@ namespace WebApplication1
             services.AddControllers();
             services.AddScoped<IUpdateStudentDetails, UpdateStudentDetails>();
             services.AddScoped<IStudentdata, Studentdata>();
-            services.AddScoped<ISqlConnectionContext, SqlConnectionContext>();
+            services.AddSingleton<ISqlConnectionContext, SqlConnectionContext>();
             services.AddDbContext<StudentDbContext>((sp, builder) =>
             builder.UseSqlServer(sp.GetRequiredService<ISqlConnectionContext>().GetConnectionString()));
         }

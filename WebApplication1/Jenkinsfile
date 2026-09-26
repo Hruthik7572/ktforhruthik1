@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'DEPLOY_TO_AWS', defaultValue: false, description: 'Deploy the tested application to AWS Lambda.')
+        string(name: 'AWS_REGION', defaultValue: '', description: 'AWS region for the Lambda deployment; required when deployment is enabled.')
+        string(name: 'AWS_STACK_NAME', defaultValue: 'student-employee-api', description: 'CloudFormation stack name for the serverless API.')
+        string(name: 'AWS_DEPLOYMENT_BUCKET', defaultValue: '', description: 'Existing S3 bucket in the deployment region for Lambda deployment artifacts.')
+        string(name: 'AWS_DB_SECRET_ARN', defaultValue: '', description: 'Secrets Manager ARN holding the SQL Server connection string; required for deployment.')
+    }
+
     options {
         timestamps()
         disableConcurrentBuilds()
@@ -16,26 +24,42 @@ pipeline {
 
         stage('Restore') {
             steps {
-                sh 'dotnet restore WebApplication1.sln'
+                sh 'dotnet restore tests/WebApplication1.Tests/WebApplication1.Tests.csproj'
+                sh 'dotnet tool restore'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'dotnet build WebApplication1.sln --configuration Release --no-restore'
+                sh 'dotnet build WebApplication1.csproj --configuration Release --no-restore'
+                sh 'dotnet build tests/WebApplication1.Tests/WebApplication1.Tests.csproj --configuration Release --no-restore'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'dotnet test WebApplication1.sln --configuration Release --no-build --no-restore'
+                sh 'dotnet test tests/WebApplication1.Tests/WebApplication1.Tests.csproj --configuration Release --no-build --no-restore'
             }
         }
 
         stage('Publish') {
             steps {
-                sh 'dotnet publish WebApplication1/WebApplication1.csproj --configuration Release --no-build --no-restore --output "$WORKSPACE/publish"'
+                sh 'dotnet publish WebApplication1.csproj --configuration Release --no-build --no-restore --output "$WORKSPACE/publish"'
                 archiveArtifacts artifacts: 'publish/**', fingerprint: true
+            }
+        }
+
+        stage('Deploy to AWS Lambda') {
+            when {
+                expression { params.DEPLOY_TO_AWS }
+            }
+            steps {
+                script {
+                    if (!params.AWS_REGION?.trim() || !params.AWS_DEPLOYMENT_BUCKET?.trim() || !params.AWS_DB_SECRET_ARN?.trim()) {
+                        error('AWS_REGION, AWS_DEPLOYMENT_BUCKET, and AWS_DB_SECRET_ARN are required when DEPLOY_TO_AWS is enabled.')
+                    }
+                }
+                sh 'dotnet lambda deploy-serverless "$AWS_STACK_NAME" --region "$AWS_REGION" --s3-bucket "$AWS_DEPLOYMENT_BUCKET" --template-parameters "DatabaseSecretArn=$AWS_DB_SECRET_ARN" --disable-interactive'
             }
         }
     }
